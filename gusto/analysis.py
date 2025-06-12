@@ -1,5 +1,19 @@
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from typing import Optional
+
+
+@dataclass
+class DocumentAnalysis:
+    word_count: int
+    char_count: int
+    page_count: int
+    title: Optional[str] = None
+    author: Optional[str] = None
+    subject: Optional[str] = None
+    producer: Optional[str] = None
+    created: Optional[str] = None
+    modified: Optional[str] = None
 
 
 class FileAnalyser(ABC):
