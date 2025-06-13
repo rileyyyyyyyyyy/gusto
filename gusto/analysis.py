@@ -81,7 +81,7 @@ class FileAnalyser(ABC):
                 "created": datetime.fromtimestamp(created_ts).strftime('%Y-%m-%d %H:%M:%S'),
                 "modified": datetime.fromtimestamp(modified_ts).strftime('%Y-%m-%d %H:%M:%S'),
             }
-        except Exception:
+        except Exception:   # TODO: narrow the exception clause
             return {"created": None, "modified": None}
 
 
@@ -230,6 +230,9 @@ class TextAnalyser(FileAnalyser):
 
     def _read_metadata(self) -> dict[str, Optional[str]]:
         return {}
+
+
+# TODO: add support for video, audio, and more application/* files
 
 
 class AnalyserFactory:
