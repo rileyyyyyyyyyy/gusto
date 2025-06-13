@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Any
+import magic
 
 from PyPDF2 import PdfReader
 from docx import Document
@@ -58,9 +59,8 @@ def clean_text_for_counting(text: str) -> str:
 
 
 class FileAnalyser(ABC):
-    @abstractmethod
     def __init__(self, path: str) -> None:
-        pass
+        self.path = path
 
     @abstractmethod
     def analyse(self) -> DocumentAnalysis:
@@ -72,6 +72,7 @@ class FileAnalyser(ABC):
 
 
 class PDFAnalyser(FileAnalyser):
+
     @staticmethod
     def parse_pdf_date(raw: Optional[str]) -> Optional[str]:
         if not raw:
@@ -85,7 +86,7 @@ class PDFAnalyser(FileAnalyser):
             return raw
 
     def __init__(self, path: str) -> None:
-        self.path: str = path
+        super().__init__(path)
         self.reader: Optional[PdfReader] = None
         self.pages: list[Any] = []
 
@@ -106,16 +107,7 @@ class PDFAnalyser(FileAnalyser):
                     adapter.convert(tmp.name)
 
                 doc: DocxDocument = Document(tmp.name)
-
-                text_parts: list[str] = []
-                text_parts.extend(p.text for p in doc.paragraphs)
-
-                for table in doc.tables:
-                    for row in table.rows:
-                        for cell in row.cells:
-                            text_parts.append(cell.text)
-
-                text: str = ' '.join(text_parts)
+                text: str = self._extract_text(doc)
                 cleaned: str = clean_text_for_counting(text)
 
                 word_count: int = len([w for w in cleaned.split() if any(c.isalpha() for c in w)])
@@ -137,10 +129,17 @@ class PDFAnalyser(FileAnalyser):
             modified=meta.get("modified"),
         )
 
+    def _extract_text(self, doc: DocxDocument) -> str:
+        text_parts: list[str] = [p.text for p in doc.paragraphs]
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    text_parts.append(cell.text)
+        return ' '.join(text_parts)
+
     def _read_metadata(self) -> dict[str, Optional[str]]:
         if not self.reader:
             return {}
-
         metadata: dict[str, Any] = dict(self.reader.metadata or {})
         return {
             "title": clean_meta(metadata.get('/Title')),
@@ -153,8 +152,14 @@ class PDFAnalyser(FileAnalyser):
 
 
 class AnalyserFactory:
+    _registry: dict[str, type[FileAnalyser]] = {
+        'application/pdf': PDFAnalyser,
+    }
+
     @staticmethod
     def get_analyser(path: str) -> FileAnalyser:
-        if path.lower().endswith('.pdf'):
-            return PDFAnalyser(path)
-        raise ValueError("Unsupported file type.")
+        mime_type = magic.from_file(path, mime=True)
+        analyser_cls = AnalyserFactory._registry.get(mime_type)
+        if analyser_cls:
+            return analyser_cls(path)
+        raise ValueError(f"Unsupported MIME type: {mime_type}")
