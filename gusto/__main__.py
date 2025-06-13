@@ -35,7 +35,39 @@ def main() -> None:
     
     analysis: DocumentAnalysis = analyser.analyse()
     
-    
+    stats = Table(title="Analysis", show_header=False, show_lines=True, box=box.SQUARE)
+    stats.add_column("Name", justify="right", width=20, style="bold")
+    stats.add_column("Value", justify="left", width=40)
+
+    stats.add_row("Word count", f"{analysis.word_count:,}")
+    stats.add_row("Character count", f"{analysis.char_count:,}")
+    stats.add_row("Page count", f"{analysis.page_count}")
+
+    console.print(stats)
+
+    meta = Table(title="Metadata", show_header=False, show_lines=True, box=box.SQUARE)
+    meta.add_column("Name", justify="right", width=20, style="bold")
+    meta.add_column("Value", justify="left", width=40)
+
+    if analysis.title:
+        meta.add_row("Title", analysis.title)
+    if analysis.author:
+        meta.add_row("Author", analysis.author)
+    if analysis.subject:
+        meta.add_row("Subject", analysis.subject)
+    if analysis.producer:
+        meta.add_row("Producer", analysis.producer)
+    if analysis.created:
+        meta.add_row("Created", analysis.created)
+    if analysis.modified:
+        meta.add_row("Modified", analysis.modified)
+
+    if meta.row_count > 0:
+        console.print("\n", meta)
+    else:
+        console.print("\n[italic yellow]No metadata found in the PDF.[/]\n")
+
+    print("\n\n")
 
 if __name__=='__main__':
     main()
