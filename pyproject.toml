@@ -7,13 +7,18 @@ requires-python = ">=3.10"
 license = {text = "MIT"}
 
 authors = [
-  { name="Riley Purcell", email="hello@rileypurcell.net" }
+  { name = "Riley Purcell" }
 ]
 
 dependencies = [
   "PyPDF2",
-  "rich"
+  "rich",
+  "pdf2docx",
+  "python-docx"
 ]
 
 [project.scripts]
 gusto = "gusto.__main__:main"
+
+[tool.setuptools]
+packages = ["gusto"]
