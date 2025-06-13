@@ -1,18 +1,19 @@
-import sys
 import re
 import io
+import os
 import logging
+import tempfile
 import unicodedata
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Any
 from datetime import datetime
+from typing import Optional, Any
+
 from PyPDF2 import PdfReader
-from pdf2docx import Converter  # type: ignore
 from docx import Document
-import tempfile
-import os
 from docx.document import Document as DocxDocument
+
+from gusto.adapter import PDFConverterAdapter
 
 # suppress INFO logs from pdf2docx
 logging.getLogger().setLevel(logging.ERROR)
@@ -48,7 +49,15 @@ def clean_text_for_counting(text: str) -> str:
     return text.strip()
 
 
+class PDFOpenError(Exception):
+    pass
+
+
 class FileAnalyser(ABC):
+    @abstractmethod
+    def __init__(self, path: str) -> None:
+        pass
+
     @abstractmethod
     def analyse(self) -> DocumentAnalysis:
         pass
@@ -83,7 +92,7 @@ class PDFAnalyser(FileAnalyser):
                 self.pages = self.reader.pages
         except Exception as e:
             logging.error(f"Error opening PDF: {e}")
-            sys.exit(1)
+            raise PDFOpenError(f"Error opening PDF: {e}")
 
     def analyse(self) -> DocumentAnalysis:
         word_count: int = 0
@@ -92,9 +101,8 @@ class PDFAnalyser(FileAnalyser):
         with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
             tmp.close()
             try:
-                converter: Converter = Converter(self.path)
-                converter.convert(tmp.name)  # type: ignore
-                converter.close()
+                with PDFConverterAdapter(self.path) as adapter:
+                    adapter.convert(tmp.name)
 
                 doc: DocxDocument = Document(tmp.name)
 
