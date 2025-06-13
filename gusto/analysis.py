@@ -1,13 +1,20 @@
 import sys
 import re
+import io
+import logging
 import unicodedata
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional, Any
 from datetime import datetime
 from PyPDF2 import PdfReader
-import logging
-import io
+from pdf2docx import Converter  # type: ignore
+from docx import Document
+import tempfile
+import os
+
+# suppress INFO logs from pdf2docx
+logging.getLogger().setLevel(logging.ERROR)
 
 
 @dataclass
@@ -62,7 +69,7 @@ class PDFAnalyser(FileAnalyser):
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             return raw
-    
+
     def __init__(self, path: str):
         self.path = path
         self.reader: Optional[PdfReader] = None
@@ -81,11 +88,29 @@ class PDFAnalyser(FileAnalyser):
         word_count = 0
         char_count = 0
 
-        for page in self.pages:
-            text = page.extract_text() or ""
-            cleaned = clean_text_for_counting(text)
-            word_count += len(cleaned.split())
-            char_count += len(cleaned.replace(" ", ""))
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
+            tmp.close()
+            try:
+                converter: Converter = Converter(self.path)
+                converter.convert(tmp.name)  # type: ignore
+                converter.close()
+
+                doc = Document(tmp.name)
+
+                text_parts = []
+                text_parts.extend(p.text for p in doc.paragraphs)
+
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            text_parts.append(cell.text)
+
+                text = ' '.join(text_parts)
+                cleaned = clean_text_for_counting(text)
+                word_count = len(cleaned.split())
+                char_count = len(cleaned.replace(" ", ""))
+            finally:
+                os.remove(tmp.name)
 
         meta = self._read_metadata()
 
@@ -111,8 +136,8 @@ class PDFAnalyser(FileAnalyser):
             "author": clean_meta(metadata.get('/Author')),
             "subject": clean_meta(metadata.get('/Subject')),
             "producer": clean_meta(metadata.get('/Producer')),
-            "created": PDFAnalyser.parse_pdf_date(clean_meta(metadata.get('/CreationDate'))),
-            "modified": PDFAnalyser.parse_pdf_date(clean_meta(metadata.get('/ModDate'))),
+            "created": self.parse_pdf_date(clean_meta(metadata.get('/CreationDate'))),
+            "modified": self.parse_pdf_date(clean_meta(metadata.get('/ModDate'))),
         }
 
 
@@ -120,5 +145,5 @@ class AnalyserFactory:
     @staticmethod
     def get_analyser(path: str) -> FileAnalyser:
         if path.lower().endswith('.pdf'):
-            return PDFAnalyser(path)
-        raise ValueError("Unsupported file type")
+            return PDFDocxAnalyser(path)
+        raise ValueError("Unsupported file type.")
