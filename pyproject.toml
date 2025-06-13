@@ -14,7 +14,9 @@ dependencies = [
   "PyPDF2",
   "rich",
   "pdf2docx",
-  "python-docx"
+  "python-docx",
+  "libmagic",
+  "python-magic"
 ]
 
 [project.scripts]
