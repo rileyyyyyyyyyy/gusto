@@ -195,15 +195,16 @@ class TextAnalyser(FileAnalyser):
 class AnalyserFactory:
     _registry: dict[str, type[FileAnalyser]] = {
         'application/pdf': PDFAnalyser,
-        'text/plain': TextAnalyser,
-        'text/markdown': TextAnalyser,
-        'application/x-yaml': TextAnalyser,
     }
 
     @staticmethod
     def get_analyser(path: str) -> FileAnalyser:
         mime_type = magic.from_file(path, mime=True)
-        analyser_cls = AnalyserFactory._registry.get(mime_type)
-        if analyser_cls:
-            return analyser_cls(path)
+
+        if mime_type in AnalyserFactory._registry:
+            return AnalyserFactory._registry[mime_type](path)
+
+        if mime_type.startswith("text/"):
+            return TextAnalyser(path)
+
         raise ValueError(f"Unsupported MIME type: {mime_type}")
