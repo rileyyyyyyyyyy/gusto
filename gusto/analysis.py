@@ -19,6 +19,14 @@ from gusto.adapter import PDFConverterAdapter
 logging.getLogger().setLevel(logging.ERROR)
 
 
+class PDFOpenError(Exception):
+    pass
+
+
+class MetaDataReadError(Exception):
+    pass
+
+
 @dataclass
 class DocumentAnalysis:
     word_count: int
@@ -39,18 +47,14 @@ def clean_meta(value: Any) -> Optional[str]:
         if isinstance(value, bytes):
             return value.decode("utf-8", errors="ignore").strip()
         return str(value).strip()
-    except Exception:
-        return None
+    except Exception as e:
+        raise MetaDataReadError(f'Error while reading meta data: {e}')
 
 
 def clean_text_for_counting(text: str) -> str:
     text = re.sub(r'\s+', ' ', text)
     text = ''.join(c for c in text if unicodedata.category(c)[0] != 'C')
     return text.strip()
-
-
-class PDFOpenError(Exception):
-    pass
 
 
 class FileAnalyser(ABC):
@@ -95,9 +99,6 @@ class PDFAnalyser(FileAnalyser):
             raise PDFOpenError(f"Error opening PDF: {e}")
 
     def analyse(self) -> DocumentAnalysis:
-        word_count: int = 0
-        char_count: int = 0
-
         with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
             tmp.close()
             try:
@@ -116,8 +117,9 @@ class PDFAnalyser(FileAnalyser):
 
                 text: str = ' '.join(text_parts)
                 cleaned: str = clean_text_for_counting(text)
-                word_count = len([w for w in cleaned.split() if any(c.isalpha() for c in w)])
-                char_count = len(cleaned.replace(" ", ""))
+
+                word_count: int = len([w for w in cleaned.split() if any(c.isalpha() for c in w)])
+                char_count: int = len(cleaned.replace(" ", ""))
             finally:
                 os.remove(tmp.name)
 
