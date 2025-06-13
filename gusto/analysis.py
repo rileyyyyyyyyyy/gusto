@@ -12,6 +12,7 @@ from pdf2docx import Converter  # type: ignore
 from docx import Document
 import tempfile
 import os
+from docx.document import Document as DocxDocument
 
 # suppress INFO logs from pdf2docx
 logging.getLogger().setLevel(logging.ERROR)
@@ -65,19 +66,19 @@ class PDFAnalyser(FileAnalyser):
         if raw.startswith("D:"):
             raw = raw[2:]
         try:
-            dt = datetime.strptime(raw[:14], "%Y%m%d%H%M%S")
+            dt: datetime = datetime.strptime(raw[:14], "%Y%m%d%H%M%S")
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             return raw
 
-    def __init__(self, path: str):
-        self.path = path
+    def __init__(self, path: str) -> None:
+        self.path: str = path
         self.reader: Optional[PdfReader] = None
-        self.pages = []
+        self.pages: list[Any] = []
 
         try:
             with open(self.path, 'rb') as file:
-                data = file.read()
+                data: bytes = file.read()
                 self.reader = PdfReader(io.BytesIO(data))
                 self.pages = self.reader.pages
         except Exception as e:
@@ -85,8 +86,8 @@ class PDFAnalyser(FileAnalyser):
             sys.exit(1)
 
     def analyse(self) -> DocumentAnalysis:
-        word_count = 0
-        char_count = 0
+        word_count: int = 0
+        char_count: int = 0
 
         with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
             tmp.close()
@@ -95,9 +96,9 @@ class PDFAnalyser(FileAnalyser):
                 converter.convert(tmp.name)  # type: ignore
                 converter.close()
 
-                doc = Document(tmp.name)
+                doc: DocxDocument = Document(tmp.name)
 
-                text_parts = []
+                text_parts: list[str] = []
                 text_parts.extend(p.text for p in doc.paragraphs)
 
                 for table in doc.tables:
@@ -105,14 +106,14 @@ class PDFAnalyser(FileAnalyser):
                         for cell in row.cells:
                             text_parts.append(cell.text)
 
-                text = ' '.join(text_parts)
-                cleaned = clean_text_for_counting(text)
-                word_count = len(cleaned.split())
+                text: str = ' '.join(text_parts)
+                cleaned: str = clean_text_for_counting(text)
+                word_count = len([w for w in cleaned.split() if any(c.isalpha() for c in w)])
                 char_count = len(cleaned.replace(" ", ""))
             finally:
                 os.remove(tmp.name)
 
-        meta = self._read_metadata()
+        meta: dict[str, Optional[str]] = self._read_metadata()
 
         return DocumentAnalysis(
             word_count=word_count,
@@ -145,5 +146,5 @@ class AnalyserFactory:
     @staticmethod
     def get_analyser(path: str) -> FileAnalyser:
         if path.lower().endswith('.pdf'):
-            return PDFDocxAnalyser(path)
+            return PDFAnalyser(path)
         raise ValueError("Unsupported file type.")
