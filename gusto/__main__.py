@@ -6,7 +6,13 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 
-from gusto.analysis import DocumentAnalysis, FileAnalyser, AnalyserFactory, PDFOpenError, MetaDataReadError
+from gusto.analysis import (
+    DocumentAnalysis,
+    FileAnalyser,
+    AnalyserFactory,
+    PDFOpenError,
+    MetaDataReadError,
+)
 
 
 def main() -> None:
@@ -42,7 +48,9 @@ def main() -> None:
 
     stats.add_row("Word count", f"{analysis.word_count:,}")
     stats.add_row("Character count", f"{analysis.char_count:,}")
-    stats.add_row("Page count", f"{analysis.page_count}")
+
+    page_label = "Line count" if analysis.mime_type and analysis.mime_type.startswith("text/") else "Page count"
+    stats.add_row(page_label, f"{analysis.page_count}")
 
     console.print(stats)
 

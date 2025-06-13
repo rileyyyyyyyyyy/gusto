@@ -32,7 +32,7 @@ class MetaDataReadError(Exception):
 class DocumentAnalysis:
     word_count: int
     char_count: int
-    page_count: int
+    page_count: int  # used for actual pages, or lines in plain text
     title: Optional[str] = None
     author: Optional[str] = None
     subject: Optional[str] = None
@@ -170,7 +170,8 @@ class TextAnalyser(FileAnalyser):
     def analyse(self) -> DocumentAnalysis:
         try:
             with open(self.path, 'r', encoding='utf-8') as f:
-                text: str = f.read()
+                lines: list[str] = f.readlines()
+                text: str = ''.join(lines)
         except Exception as e:
             raise PDFOpenError(f"Error reading text file: {e}")
 
@@ -182,7 +183,7 @@ class TextAnalyser(FileAnalyser):
         return DocumentAnalysis(
             word_count=word_count,
             char_count=char_count,
-            page_count=1,
+            page_count=len(lines),  # interpret line count as pages
             created=fallback["created"],
             modified=fallback["modified"],
             mime_type=self.mime_type,
