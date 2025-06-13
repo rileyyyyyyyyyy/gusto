@@ -10,13 +10,11 @@ from rich import box
 from gusto.analysis import DocumentAnalysis, FileAnalyser, AnalyserFactory
 
 
-
-
 def main() -> None:
     console = Console()
     
     if len(sys.argv) != 2:
-        console.print("[bold red]Useage:[/] gusto <file>")
+        console.print("[bold red]Usage:[/] gusto <file>")
         sys.exit(1)
     
     path: Final[str] = sys.argv[1]
