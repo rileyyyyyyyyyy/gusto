@@ -8,8 +8,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Any
-import magic
 
+import magic
 from PyPDF2 import PdfReader
 from docx import Document
 from docx.document import Document as DocxDocument
@@ -39,6 +39,7 @@ class DocumentAnalysis:
     producer: Optional[str] = None
     created: Optional[str] = None
     modified: Optional[str] = None
+    mime_type: Optional[str] = None
 
 
 def clean_meta(value: Any) -> Optional[str]:
@@ -61,6 +62,7 @@ def clean_text_for_counting(text: str) -> str:
 class FileAnalyser(ABC):
     def __init__(self, path: str) -> None:
         self.path = path
+        self.mime_type: str = magic.from_file(path, mime=True)
 
     @abstractmethod
     def analyse(self) -> DocumentAnalysis:
@@ -70,9 +72,20 @@ class FileAnalyser(ABC):
     def _read_metadata(self) -> dict[str, Optional[str]]:
         pass
 
+    def _get_filesystem_dates(self) -> dict[str, Optional[str]]:
+        try:
+            stat = os.stat(self.path)
+            created_ts = getattr(stat, 'st_birthtime', stat.st_ctime)
+            modified_ts = stat.st_mtime
+            return {
+                "created": datetime.fromtimestamp(created_ts).strftime('%Y-%m-%d %H:%M:%S'),
+                "modified": datetime.fromtimestamp(modified_ts).strftime('%Y-%m-%d %H:%M:%S'),
+            }
+        except Exception:
+            return {"created": None, "modified": None}
+
 
 class PDFAnalyser(FileAnalyser):
-
     @staticmethod
     def parse_pdf_date(raw: Optional[str]) -> Optional[str]:
         if not raw:
@@ -116,6 +129,7 @@ class PDFAnalyser(FileAnalyser):
                 os.remove(tmp.name)
 
         meta: dict[str, Optional[str]] = self._read_metadata()
+        fallback = self._get_filesystem_dates()
 
         return DocumentAnalysis(
             word_count=word_count,
@@ -125,8 +139,9 @@ class PDFAnalyser(FileAnalyser):
             author=meta.get("author"),
             subject=meta.get("subject"),
             producer=meta.get("producer"),
-            created=meta.get("created"),
-            modified=meta.get("modified"),
+            created=meta.get("created") or fallback["created"],
+            modified=meta.get("modified") or fallback["modified"],
+            mime_type=self.mime_type,
         )
 
     def _extract_text(self, doc: DocxDocument) -> str:
@@ -151,9 +166,38 @@ class PDFAnalyser(FileAnalyser):
         }
 
 
+class TextAnalyser(FileAnalyser):
+    def analyse(self) -> DocumentAnalysis:
+        try:
+            with open(self.path, 'r', encoding='utf-8') as f:
+                text: str = f.read()
+        except Exception as e:
+            raise PDFOpenError(f"Error reading text file: {e}")
+
+        cleaned: str = clean_text_for_counting(text)
+        word_count: int = len([w for w in cleaned.split() if any(c.isalpha() for c in w)])
+        char_count: int = len(cleaned.replace(" ", ""))
+        fallback = self._get_filesystem_dates()
+
+        return DocumentAnalysis(
+            word_count=word_count,
+            char_count=char_count,
+            page_count=1,
+            created=fallback["created"],
+            modified=fallback["modified"],
+            mime_type=self.mime_type,
+        )
+
+    def _read_metadata(self) -> dict[str, Optional[str]]:
+        return {}
+
+
 class AnalyserFactory:
     _registry: dict[str, type[FileAnalyser]] = {
         'application/pdf': PDFAnalyser,
+        'text/plain': TextAnalyser,
+        'text/markdown': TextAnalyser,
+        'application/x-yaml': TextAnalyser,
     }
 
     @staticmethod
