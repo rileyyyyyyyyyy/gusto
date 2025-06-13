@@ -41,7 +41,7 @@ def clean_text_for_counting(text: str) -> str:
 
 class FileAnalyser(ABC):
     @abstractmethod
-    def analyse_content(self) -> DocumentAnalysis:
+    def analyse(self) -> DocumentAnalysis:
         pass
 
     @abstractmethod
@@ -75,7 +75,7 @@ class PDFAnalyser(FileAnalyser):
             logging.error(f"Error opening PDF: {e}")
             sys.exit(1)
 
-    def analyse_content(self) -> DocumentAnalysis:
+    def analyse(self) -> DocumentAnalysis:
         word_count = 0
         char_count = 0
 
