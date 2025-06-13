@@ -7,6 +7,7 @@ from typing import Optional, Any
 from datetime import datetime
 from PyPDF2 import PdfReader
 import logging
+import io
 
 
 @dataclass
@@ -69,7 +70,8 @@ class PDFAnalyser(FileAnalyser):
 
         try:
             with open(self.path, 'rb') as file:
-                self.reader = PdfReader(file)
+                data = file.read()
+                self.reader = PdfReader(io.BytesIO(data))
                 self.pages = self.reader.pages
         except Exception as e:
             logging.error(f"Error opening PDF: {e}")
