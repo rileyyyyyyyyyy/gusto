@@ -52,6 +52,8 @@ def main() -> None:
 
     if analysis.title:
         meta.add_row("Title", analysis.title)
+    if analysis.mime_type:
+        meta.add_row("Type", analysis.mime_type)
     if analysis.author:
         meta.add_row("Author", analysis.author)
     if analysis.subject:
@@ -66,7 +68,7 @@ def main() -> None:
     if meta.row_count > 0:
         console.print("\n", meta)
     else:
-        console.print("\n[italic yellow]No metadata found in the document.[/]\n")
+        console.print("\n[italic yellow]No metadata found in the document.[/]")
 
     print("\n")
 
