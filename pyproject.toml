@@ -1,0 +1,19 @@
+[project]
+name = "gusto"
+version = "0.0.0"
+description = "Multi-purpose file analysis tool."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+authors = [
+  { name="Riley Purcell", email="hello@rileypurcell.net" }
+]
+
+dependencies = [
+  "PyPDF2",
+  "rich"
+]
+
+[project.scripts]
+gusto = "gusto.__main__:main"
