@@ -1,38 +1,41 @@
 import sys
-from typing import Final
-
 import os
+from typing import Final
 
 from rich.console import Console
 from rich.table import Table
 from rich import box
 
-from gusto.analysis import DocumentAnalysis, FileAnalyser, AnalyserFactory
+from gusto.analysis import DocumentAnalysis, FileAnalyser, AnalyserFactory, PDFOpenError, MetaDataReadError
 
 
 def main() -> None:
     console = Console()
-    
+
     if len(sys.argv) != 2:
         console.print("[bold red]Usage:[/] gusto <file>")
         sys.exit(1)
-    
+
     path: Final[str] = sys.argv[1]
-    
+
     if not os.path.exists(path):
-        console.print(f"[bold red]Error:[/] file not found: {path}")
+        console.print(f"[bold red]Error:[/] File not found: {path}")
         sys.exit(1)
-    
-    if not path.lower().endswith('.pdf'):
-        console.print(f"[bold red]Error:[/] file type not supported.")
+
+    try:
+        analyser: FileAnalyser = AnalyserFactory.get_analyser(path)
+    except ValueError as e:
+        console.print(f"[bold red]Error:[/] {e}")
         sys.exit(1)
-    
-    console.print('[bold green]Reading file...[/]\n\n')
-    
-    analyser: FileAnalyser = AnalyserFactory.get_analyser(path)
-    
-    analysis: DocumentAnalysis = analyser.analyse()
-    
+
+    console.print("[bold green]Reading file...[/]\n")
+
+    try:
+        analysis: DocumentAnalysis = analyser.analyse()
+    except (PDFOpenError, MetaDataReadError) as e:
+        console.print(f"[bold red]Error analysing file:[/] {e}")
+        sys.exit(1)
+
     stats = Table(title="Analysis", show_header=False, show_lines=True, box=box.SQUARE)
     stats.add_column("Name", justify="right", width=20, style="bold")
     stats.add_column("Value", justify="left", width=40)
@@ -63,9 +66,10 @@ def main() -> None:
     if meta.row_count > 0:
         console.print("\n", meta)
     else:
-        console.print("\n[italic yellow]No metadata found in the PDF.[/]\n")
+        console.print("\n[italic yellow]No metadata found in the document.[/]\n")
 
-    print("\n\n")
+    print("\n")
+
 
 if __name__ == '__main__':
     main()
