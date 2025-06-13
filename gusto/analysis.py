@@ -166,6 +166,45 @@ class PDFAnalyser(FileAnalyser):
         }
 
 
+class DocumentAnalyser(FileAnalyser):
+    def analyse(self) -> DocumentAnalysis:
+        try:
+            doc: DocxDocument = Document(self.path)
+        except Exception as e:
+            raise PDFOpenError(f"Error opening Word document: {e}")
+
+        text = self._extract_text(doc)
+        cleaned: str = clean_text_for_counting(text)
+        word_count: int = len([w for w in cleaned.split() if any(c.isalpha() for c in w)])
+        char_count: int = len(cleaned.replace(" ", ""))
+        fallback = self._get_filesystem_dates()
+
+        return DocumentAnalysis(
+            word_count=word_count,
+            char_count=char_count,
+            page_count=len(doc.paragraphs),
+            title=None,
+            author=None,
+            subject=None,
+            producer=None,
+            created=fallback["created"],
+            modified=fallback["modified"],
+            mime_type=self.mime_type,
+        )
+
+    def _extract_text(self, doc: DocxDocument) -> str:
+        text_parts: list[str] = [p.text for p in doc.paragraphs]
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    text_parts.append(cell.text)
+        return ' '.join(text_parts)
+
+    def _read_metadata(self) -> dict[str, Optional[str]]:
+        # TODO: get docx metadata instead of relying on fallback.
+        return {}
+
+
 class TextAnalyser(FileAnalyser):
     def analyse(self) -> DocumentAnalysis:
         try:
@@ -183,7 +222,7 @@ class TextAnalyser(FileAnalyser):
         return DocumentAnalysis(
             word_count=word_count,
             char_count=char_count,
-            page_count=len(lines),  # interpret line count as pages
+            page_count=len(lines),
             created=fallback["created"],
             modified=fallback["modified"],
             mime_type=self.mime_type,
@@ -196,6 +235,7 @@ class TextAnalyser(FileAnalyser):
 class AnalyserFactory:
     _registry: dict[str, type[FileAnalyser]] = {
         'application/pdf': PDFAnalyser,
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': DocumentAnalyser,
     }
 
     @staticmethod
