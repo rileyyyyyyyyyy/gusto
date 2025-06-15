@@ -81,7 +81,7 @@ class FileAnalyser(ABC):
                 "created": datetime.fromtimestamp(created_ts).strftime('%Y-%m-%d %H:%M:%S'),
                 "modified": datetime.fromtimestamp(modified_ts).strftime('%Y-%m-%d %H:%M:%S'),
             }
-        except Exception:   # TODO: narrow the exception clause
+        except Exception:  # TODO: narrow the exception clause
             return {"created": None, "modified": None}
 
 
@@ -252,3 +252,17 @@ class AnalyserFactory:
             return TextAnalyser(path)
 
         raise ValueError(f"Unsupported MIME type: {mime_type}")
+
+
+def analyse_directory(path: str) -> dict[str, DocumentAnalysis]:
+    results = {}
+    for root, _, files in os.walk(path):
+        for filename in files:
+            file_path = os.path.join(root, filename)
+            try:
+                analyser = AnalyserFactory.get_analyser(file_path)
+                analysis = analyser.analyse()
+                results[file_path] = analysis
+            except Exception as e:
+                logging.warning(f"Skipping {file_path}: {e}")
+    return results
