@@ -12,35 +12,12 @@ from gusto.analysis import (
     AnalyserFactory,
     PDFOpenError,
     MetaDataReadError,
+    analyse_directory,
 )
 
 
-def main() -> None:
-    console = Console()
-
-    if len(sys.argv) != 2:
-        console.print("[bold red]Usage:[/] gusto <file>")
-        sys.exit(1)
-
-    path: Final[str] = sys.argv[1]
-
-    if not os.path.exists(path):
-        console.print(f"[bold red]Error:[/] File not found: {path}")
-        sys.exit(1)
-
-    try:
-        analyser: FileAnalyser = AnalyserFactory.get_analyser(path)
-    except ValueError as e:
-        console.print(f"[bold red]Error:[/] {e}")
-        sys.exit(1)
-
-    console.print("[bold green]Reading file...[/]\n")
-
-    try:
-        analysis: DocumentAnalysis = analyser.analyse()
-    except (PDFOpenError, MetaDataReadError) as e:
-        console.print(f"[bold red]Error analysing file:[/] {e}")
-        sys.exit(1)
+def display_analysis(console: Console, path: str, analysis: DocumentAnalysis) -> None:
+    console.print(f"[bold blue]\nFile: {path}[/]")
 
     stats = Table(title="Analysis", show_header=False, show_lines=True, box=box.SQUARE)
     stats.add_column("Name", justify="right", width=20, style="bold")
@@ -78,7 +55,43 @@ def main() -> None:
     else:
         console.print("\n[italic yellow]No metadata found in the document.[/]")
 
-    print("\n")
+
+def main() -> None:
+    console = Console()
+
+    if len(sys.argv) != 2:
+        console.print("[bold red]Usage:[/] gusto <file>")
+        sys.exit(1)
+
+    path: Final[str] = sys.argv[1]
+
+    if not os.path.exists(path):
+        console.print(f"[bold red]Error:[/] Path not found: {path}")
+        sys.exit(1)
+
+    if os.path.isdir(path):
+        console.print("[bold green]Scanning directory...[/]")
+        results = analyse_directory(path)
+        if not results:
+            console.print("[italic yellow]No supported files found in directory.[/]")
+        for file_path, analysis in results.items():
+            display_analysis(console, file_path, analysis)
+    else:
+        try:
+            analyser: FileAnalyser = AnalyserFactory.get_analyser(path)
+        except ValueError as e:
+            console.print(f"[bold red]Error:[/] {e}")
+            sys.exit(1)
+
+        console.print("[bold green]Reading file...[/]\n")
+
+        try:
+            analysis: DocumentAnalysis = analyser.analyse()
+        except (PDFOpenError, MetaDataReadError) as e:
+            console.print(f"[bold red]Error analysing file:[/] {e}")
+            sys.exit(1)
+
+        display_analysis(console, path, analysis)
 
 
 if __name__ == '__main__':
