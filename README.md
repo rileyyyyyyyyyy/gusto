@@ -28,10 +28,10 @@ This is **groundbreaking!!!** Not even the inventors of the PDF format (Adobe) k
 
 ## Usage
 
-Run the CLI by invoking the script:
+### Analyse a file
 
 ```bash
-gusto <file_path>
+gusto <file>
 ```
 
 Example:
@@ -40,6 +40,18 @@ Example:
 gusto trying_my_best.pdf
 ```
 
+
+### Analyse all files in a folder
+
+```bash
+gusto <directory>
+```
+
+Example:
+
+```bash
+gusto ~/Documents/projects
+```
 
 ## Project Structure
 
